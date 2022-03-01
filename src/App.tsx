@@ -17,57 +17,184 @@ const Box = styled.div<{ x: number; y: number; width: number; height: number }>`
   border: 1px solid red;
 `;
 
+const Circle = styled.div<{
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}>`
+  width: ${({ width }) => `${width}px`};
+  height: ${({ height }) => `${height}px`};
+  position: absolute;
+  top: ${({ y }) => `${y}px`};
+  left: ${({ x }) => `${x}px`};
+  border: 1px solid red;
+  border-radius: 100%;
+`;
+
 function App() {
-  const [first, setFirst] = useState({
+  const [firstSquare, setFirstSquare] = useState({
     x: 0,
     y: 0,
   });
-  const [width, setWidth] = useState(0);
-  const [height, setHeight] = useState(0);
-  const [draw, setDraw] = useState(true);
+  const [firstCircle, setFirstCircle] = useState({
+    x: 0,
+    y: 0,
+  });
+  const [width, setWidth] = useState({
+    square: 0,
+    circle: 0,
+  });
+  const [height, setHeight] = useState({
+    square: 0,
+    circle: 0,
+  });
+  const [drawStatus, setDrawStatus] = useState({
+    square: true,
+    circle: true,
+  });
+  const [visible, setVisible] = useState(true);
+  const [drawTarget, setDrawTarget] = useState<"square" | "circle">("square");
 
-  const handleDraw = () => {
-    setDraw((prev) => !prev);
+  const handleDraw = (type: "square" | "circle") => () => {
+    setDrawTarget(type);
   };
 
   const hanldeMouseDown = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     const { offsetX, offsetY } = e.nativeEvent;
 
-    if (draw && drawStatus) {
-      setFirst({ x: offsetX, y: offsetY });
+    switch (drawTarget) {
+      case "circle":
+        return drawStatus.circle && setFirstCircle({ x: offsetX, y: offsetY });
+
+      default:
+        return drawStatus.square && setFirstSquare({ x: offsetX, y: offsetY });
     }
   };
-  const [drawStatus, setDrawStatus] = useState(true);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
     const { offsetX, offsetY } = e.nativeEvent;
-    if (drawStatus) {
-      if (first.x !== 0 && first.y !== 0) {
-        if (first.x < offsetX) {
-          setWidth(offsetX - first.x);
+
+    switch (drawTarget) {
+      case "circle":
+        if (firstCircle.x !== 0 && firstCircle.y !== 0) {
+          if (firstCircle.x < offsetX) {
+            drawStatus.circle &&
+              setWidth({ ...width, circle: offsetX - firstCircle.x });
+          }
+          if (firstCircle.y < offsetY) {
+            drawStatus.circle &&
+              setHeight({ ...width, circle: offsetY - firstCircle.y });
+          }
         }
-        if (first.y < offsetY) {
-          setHeight(offsetY - first.y);
+        break;
+
+      default:
+        if (firstSquare.x !== 0 && firstSquare.y !== 0) {
+          if (firstSquare.x < offsetX) {
+            drawStatus.square &&
+              setWidth({ ...width, square: offsetX - firstSquare.x });
+          }
+          if (firstSquare.y < offsetY) {
+            drawStatus.square &&
+              setHeight({ ...width, square: offsetY - firstSquare.y });
+          }
         }
-      }
+        break;
     }
   };
 
   const handleMouseUp = () => {
-    setDrawStatus(false);
+    switch (drawTarget) {
+      case "circle":
+        return setDrawStatus({ ...drawStatus, circle: false });
+
+      default:
+        return setDrawStatus({ ...drawStatus, square: false });
+    }
+  };
+  const handleAllDelete = () => {
+    setVisible(false);
+  };
+  const handleSave = () => {
+    window.localStorage.setItem("squareX", firstSquare.x.toString());
+    window.localStorage.setItem("squareY", firstSquare.y.toString());
+    window.localStorage.setItem("squareWidth", width.square.toString());
+    window.localStorage.setItem("squareHeight", height.square.toString());
+    window.localStorage.setItem(
+      "squareStatus",
+      drawStatus.square ? "true" : "false"
+    );
+
+    window.localStorage.setItem("circleX", firstCircle.x.toString());
+    window.localStorage.setItem("circleY", firstCircle.y.toString());
+    window.localStorage.setItem("circleWidth", width.circle.toString());
+    window.localStorage.setItem("circleHeight", height.circle.toString());
+    window.localStorage.setItem(
+      "circleStatus",
+      drawStatus.circle ? "true" : "false"
+    );
+  };
+  useEffect(() => {
+    getLocalCache();
+  }, []);
+  const getLocalCache = async () => {
+    const squareX = await localStorage.getItem("squareX");
+    const squareY = await localStorage.getItem("squareY");
+    const squareWidth = await localStorage.getItem("squareWidth");
+    const squareHeight = await localStorage.getItem("squareHeight");
+    const squareStatus = await localStorage.getItem("squareStatus");
+
+    const circleX = await localStorage.getItem("circleX");
+    const circleY = await localStorage.getItem("circleY");
+    const circleWidth = await localStorage.getItem("circleWidth");
+    const circleHeight = await localStorage.getItem("circleHeight");
+    const circleStatus = await localStorage.getItem("circleStatus");
+
+    setFirstSquare({
+      x: Number(squareX),
+      y: Number(squareY),
+    });
+    setFirstCircle({
+      x: Number(circleX),
+      y: Number(circleY),
+    });
+    setWidth({ circle: Number(circleWidth), square: Number(squareWidth) });
+    setHeight({ circle: Number(circleHeight), square: Number(squareHeight) });
+    setDrawStatus({
+      circle: circleStatus === "false" ? false : true,
+      square: squareStatus === "false" ? false : true,
+    });
   };
 
   return (
     <div className="App">
-      <button onClick={handleDraw}>네모</button>
-      <span>{draw ? "그릴수있다" : "그릴수없다"}</span>
+      <button onClick={handleDraw("square")}>네모</button>
+      <button onClick={handleDraw("circle")}>원</button>
+      <button onClick={handleAllDelete}>다지우깅</button>
+      <button onClick={handleSave}>저장</button>
+
+      {drawTarget}
       <Canvas
         onMouseDown={hanldeMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
       >
-        {first.x > 0 && first.y > 0 && (
-          <Box x={first.x} y={first.y} width={width} height={height} />
+        {visible && (
+          <>
+            <Box
+              x={firstSquare.x}
+              y={firstSquare.y}
+              width={width.square}
+              height={height.square}
+            />
+            <Circle
+              x={firstCircle.x}
+              y={firstCircle.y}
+              width={width.circle}
+              height={height.circle}
+            />
+          </>
         )}
       </Canvas>
     </div>
